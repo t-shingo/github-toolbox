@@ -1,0 +1,15 @@
+services:
+  python:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./app:/opt/app
+    working_dir: /opt/app
+    tty: true
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 10g
+
