@@ -26,30 +26,53 @@ def export_collaborators():
         
         with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(["Repository", "Login", "Role (Permission)", "Type"])
-            
+            writer.writerow(["Repository", "Login", "Role (Permission)", "Type", "Status"])
+
             # 組織の全リポジトリをループ
             for repo in org.get_repos():
                 print(f"Processing: {repo.name}...", end=" ", flush=True)
-                
+
                 try:
                     # コラボレーター一覧を取得
                     collaborators = repo.get_collaborators()
                     count = 0
-                    
+
                     for collab in collaborators:
                         # 権限情報を取得 (admin, write, read 等)
                         permission = repo.get_collaborator_permission(collab)
-                        
+
                         writer.writerow([
                             repo.name,
                             collab.login,
                             permission,
-                            collab.type
+                            collab.type,
+                            "Active"
                         ])
                         count += 1
-                    print(f"Done ({count} members)")
-                        
+
+                    # 招待中 (Pending Invite) / 招待期限切れ (Invite Expired) を取得
+                    invite_count = 0
+                    for invitation in repo.get_pending_invitations():
+                        # メールアドレスのみで招待した場合、invitee は None になり
+                        # raw_data の email フィールドにのみ情報が入る
+                        if invitation.invitee is not None:
+                            login = invitation.invitee.login
+                            invitee_type = invitation.invitee.type
+                        else:
+                            login = invitation.raw_data.get("email", "(unknown)")
+                            invitee_type = "Email"
+
+                        writer.writerow([
+                            repo.name,
+                            login,
+                            invitation.permissions,
+                            invitee_type,
+                            "Invite Expired" if invitation.expired else "Invite"
+                        ])
+                        invite_count += 1
+
+                    print(f"Done ({count} members, {invite_count} invites)")
+
                 except GithubException as e:
                     # 権限不足などで取得できないリポジトリがある場合のスキップ
                     print(f"Skipped (Error: {e.data.get('message')})")
